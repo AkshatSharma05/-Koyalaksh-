@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ miner_id }}</title>
+    <script src="https://cdn.jsdelivr.net/npm/raphael@2.3.0/raphael.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/justgage@1.4.0/justgage.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: #f1f1f1;
+            text-align: center;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #00aaff;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .chart-container {
+            background-color: #2e2e2e;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            height: 300px;
+            transition: background-color 0.5s;
+        }
+        .chart-title {
+            font-size: 22px;
+            color: #00ffab;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .dashboard-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px;
+            background-color: #00aaff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        @keyframes fadeRed {
+            0% { background-color: #2e2e2e; }
+            50% { background-color: red; }
+            100% { background-color: #2e2e2e; }
+        }
+    </style>
+    <script>
+        var gaugeMethane, gaugeCO, gaugeTemperature, gaugeHumidity;
+
+        const thresholds = {
+            methane: 800,     // Threshold for Methane (ppm)
+            carbonMonoxide: 1500, // Threshold for CO (ppm)
+            temperature: 50,  // Threshold for Temperature (°C)
+            humidity: 90      // Threshold for Humidity (%)
+        };
+
+        function initGauges(methane, co, temperature, humidity) {
+            gaugeMethane = new JustGage({
+                id: "gaugeMethane",
+                value: methane,
+                min: 0,
+                max: 1000,
+                title: "Methane (ppm)"
+            });
+
+            gaugeCO = new JustGage({
+                id: "gaugeCO",
+                value: co,
+                min: 0,
+                max: 2000,
+                title: "CO (ppm)"
+            });
+
+            gaugeTemperature = new JustGage({
+                id: "gaugeTemperature",
+                value: temperature,
+                min: 0,
+                max: 100,
+                title: "Temperature (°C)"
+            });
+
+            gaugeHumidity = new JustGage({
+                id: "gaugeHumidity",
+                value: humidity,
+                min: 0,
+                max: 100,
+                title: "Humidity (%)"
+            });
+        }
+
+        function updateGauges(methane, co, temperature, humidity) {
+            gaugeMethane.refresh(methane);
+            gaugeCO.refresh(co);
+            gaugeTemperature.refresh(temperature);
+            gaugeHumidity.refresh(humidity);
+
+            checkAlerts(methane, co, temperature, humidity);
+        }
+
+        function checkAlerts(methane, co, temperature, humidity) {
+            var methaneContainer = document.getElementById("gaugeMethane").parentElement;
+            var coContainer = document.getElementById("gaugeCO").parentElement;
+            var temperatureContainer = document.getElementById("gaugeTemperature").parentElement;
+            var humidityContainer = document.getElementById("gaugeHumidity").parentElement;
+
+            // Reset backgrounds
+            methaneContainer.style.animation = "none";
+            coContainer.style.animation = "none";
+            temperatureContainer.style.animation = "none";
+            humidityContainer.style.animation = "none";
+
+            if (methane > thresholds.methane) {
+                methaneContainer.style.animation = "fadeRed 1s infinite";
+            }
+            if (co > thresholds.carbonMonoxide) {
+                coContainer.style.animation = "fadeRed 1s infinite";
+            }
+            if (temperature > thresholds.temperature) {
+                temperatureContainer.style.animation = "fadeRed 1s infinite";
+            }
+            if (humidity > thresholds.humidity) {
+                humidityContainer.style.animation = "fadeRed 1s infinite";
+            }
+        }
+
+        function fetchData() {
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    var data = JSON.parse(this.responseText);
+                    updateGauges(data.methane, data.carbon_monoxide, data.temperature, data.humidity);
+                }
+            };
+            xhr.open("GET", "/data/{{ miner_id }}", true); // Fetch real-time data for this miner
+            xhr.send();
+        }
+
+        window.onload = function() {
+            // Initialize gauges with the current values
+            initGauges({{ methane }}, {{ carbon_monoxide }}, {{ temperature }}, {{ humidity }});
+            setInterval(fetchData, 1000); // Fetch new data every second
+        };
+    </script>
+</head>
+<body>
+    <button class="dashboard-btn" onclick="window.location.href='/'">Dashboard</button>
+     <div class="container">
+        <h1>Miner Data Dashboard - {{ miner_id }}</h1>
+        <div class="grid">
+            <div class="chart-container">
+                <div class="chart-title">Methane (ppm)</div>
+                <div id="gaugeMethane" style="width: 100%; height: 300px;"></div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">CO (ppm)</div>
+                <div id="gaugeCO" style="width: 100%; height: 300px;"></div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">Temperature (°C)</div>
+                <div id="gaugeTemperature" style="width: 100%; height: 300px;"></div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">Humidity (%)</div>
+                <div id="gaugeHumidity" style="width: 100%; height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
